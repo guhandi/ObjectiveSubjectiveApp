@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survey Template</title>
+    <script src="https://unpkg.com/survey-jquery/survey.jquery.min.js"></script>
+    <link href="https://unpkg.com/survey-jquery/survey.min.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
+    <script src="/tasks/common.js"></script>
+    <script>
+        window.onload = function() {
+            initializeSessionMetadata('daily_core', 'survey'); // Adjust appId and appType as needed
+        };
+    </script>
+</head>
+<body>
+    <div id="surveyContainer"></div>
+
+    <script>
+        // SurveyJS JSON
+        const surveyJSON = {
+            title: "Customer Satisfaction Survey",
+            pages: [
+                {
+                    name: "page1",
+                    elements: [
+                        {
+                            type: "rating",
+                            name: "mood_happiness_1to5",
+                            title: "How happy are you today?",
+                            isRequired: true,
+                            rateMin: 1,
+                            rateMax: 5
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // Initialize Survey
+        const survey = new Survey.Model(surveyJSON);
+        let eventIndex = 0;
+
+        // On value changed
+        survey.onValueChanged.add(function (sender, options) {
+            const itemId = options.name;
+            const value = options.value;
+            const payload = { "value": value };
+            const sessionId = uuid.v4(); // Generate a session ID
+            const tsUtc = new Date().toISOString();
+
+            // Emit survey_item event
+            fetch('/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    event_index: eventIndex++,
+                    ts_utc: tsUtc,
+                    event_type: 'survey_item',
+                    item_id: itemId,
+                    payload_json: payload
+                })
+            }).then(response => {
+                if (!response.ok) {
+                    console.error('Failed to log event:', response.statusText);
+                }
+            }).catch(error => {
+                console.error('Error logging event:', error);
+            });
+        });
+
+        // Render Survey
+        $("#surveyContainer").Survey({
+            model: survey
+        });
+    </script>
+</body>
+</html>

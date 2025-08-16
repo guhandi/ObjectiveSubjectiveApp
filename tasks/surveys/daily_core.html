@@ -4,81 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Core Survey</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
+    <script src="/tasks/common.js"></script>
     <script>
-        async function logEvent(itemId, value) {
-            const payload = { "item_id": itemId, "value": value };
-            await fetch('/api/log', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    subject_id: 'demo',
-                    session_id: 'sess_demo',
-                    app_id: 'daily_core',
-                    app_type: 'survey',
-                    event_type: 'survey_item',
-                    event_index: 0, // This should be updated dynamically
-                    ts_utc: new Date().toISOString(),
-                    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    payload: payload
-                })
-            });
-        }
-
-        function handleSubmit() {
-            const formData = new FormData(document.querySelector('form'));
+        async function handleSubmit() {
+            const formData = new FormData(document.getElementById('surveyForm'));
             let event_index = 0;
             const summaryData = {};
 
-            formData.forEach((value, key) => {
-                logEvent(key, value, event_index);
+            for (const [key, value] of formData.entries()) {
+                await logEventGeneric({
+                    eventType: 'survey_item',
+                    itemId: key,
+                    eventIndex: event_index,
+                    payload: { value: value }
+                });
                 summaryData[key] = value;
                 event_index++;
-            });
+            }
 
             // Reverse-code the stress item
-            summaryData['stress_1to5'] = 6 - summaryData['stress_1to5'];
-
+            if (summaryData['stress_1to5'] !== undefined) {
+                summaryData['stress_1to5'] = 6 - parseInt(summaryData['stress_1to5']);
+            }
             // Calculate the mean score
-            const meanScore = Object.values(summaryData).reduce((a, b) => parseInt(a) + parseInt(b), 0) / Object.values(summaryData).length;
+            const numeric = Object.values(summaryData).map(v => parseInt(v)).filter(v => !Number.isNaN(v));
+            const meanScore = numeric.length ? (numeric.reduce((a, b) => a + b, 0) / numeric.length) : null;
 
-            fetch('/api/session_complete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    subject_id: 'demo',
-                    session_id: 'sess_demo',
-                    app_id: 'daily_core',
-                    app_type: 'survey',
-                    started_ts_utc: new Date().toISOString(),
-                    ended_ts_utc: new Date().toISOString(),
-                    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    summary: { ...summaryData, meanScore },
-                    events_count: formData.size
-                })
-            });
+            await finishSession();
             alert('Survey submitted!');
         }
+
+        window.addEventListener('load', async () => {
+            await initializeSessionMetadata('daily_core', 'survey');
+        });
     </script>
 </head>
 <body>
-    <div id="metadataModal" class="modal">
-        <div class="modal-content">
-            <span id="closeModal" style="float:right;">&times;</span>
-            <h2>Enter Metadata</h2>
-            <form id="metadataForm">
-                <label for="subject_id">Subject ID:</label>
-                <input type="text" id="subject_id" name="subject_id" required><br><br>
-                <label for="session_id">Session ID:</label>
-                <input type="text" id="session_id" name="session_id" readonly><br><br>
-                <label for="start_timestamp">Start Timestamp:</label>
-                <input type="text" id="start_timestamp" name="start_timestamp" readonly><br><br>
-                <button type="submit">Submit</button>
-            </form>
-        </div>
-    </div>
-
     <h1>Daily Core Survey</h1>
-    <form onsubmit="event.preventDefault(); handleSubmit();">
+    <form id="surveyForm" onsubmit="event.preventDefault(); handleSubmit();">
         <label for="happiness_1to5">How happy do you feel right now?</label>
         <input type="range" id="happiness_1to5" name="happiness_1to5" min="1" max="5" value="3">
         <br>
@@ -101,43 +65,5 @@
 
         <button type="submit">Submit</button>
     </form>
-
-    <script>
-        // Open the modal
-        window.onload = function() {
-            document.getElementById('metadataModal').style.display = 'block';
-            document.getElementById('session_id').value = uuid.v4();
-            document.getElementById('start_timestamp').value = new Date().toISOString();
-        };
-
-        // Close the modal
-        document.getElementById('closeModal').onclick = function() {
-            document.getElementById('metadataModal').style.display = 'none';
-        };
-
-        // Submit metadata
-        document.getElementById('metadataForm').onsubmit = function(event) {
-            event.preventDefault();
-            const subject_id = document.getElementById('subject_id').value;
-            const session_id = document.getElementById('session_id').value;
-            const start_timestamp = document.getElementById('start_timestamp').value;
-
-            fetch('/start-survey', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ subject_id, session_id, start_timestamp })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Success:', data);
-                document.getElementById('metadataModal').style.display = 'none';
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
-        };
-    </script>
 </body>
 </html>

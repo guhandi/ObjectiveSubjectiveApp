@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Template</title>
+    <script src="https://cdn.jsdelivr.net/npm/jspsych@6.3.1/jspsych.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/jspsych@6.3.1/css/jspsych.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
+    <script src="/tasks/common.js"></script>
+    <script>
+        window.onload = function() {
+            initializeSessionMetadata('task_example', 'task'); // Adjust appId and appType as needed
+        };
+    </script>
+</head>
+<body>
+    <script>
+        // Initialize jsPsych
+        const jsPsych = initJsPsych({
+            on_finish: function() {
+                jsPsych.data.displayData();
+            }
+        });
+
+        // Define a simple trial
+        const trial = {
+            type: 'html-keyboard-response',
+            stimulus: '<p>Press any key to continue.</p>',
+            on_finish: function(data) {
+                const itemId = 'task_trial';
+                const payload = {
+                    "rt": data.rt,
+                    "key_press": data.key_press
+                };
+                const sessionId = uuid.v4(); // Generate a session ID
+                const tsUtc = new Date().toISOString();
+                const eventIndex = jsPsych.data.get().count();
+
+                // Emit task_trial event
+                fetch('/events', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        event_index: eventIndex,
+                        ts_utc: tsUtc,
+                        event_type: 'task_trial',
+                        item_id: itemId,
+                        payload_json: payload
+                    })
+                }).then(response => {
+                    if (!response.ok) {
+                        console.error('Failed to log event:', response.statusText);
+                    }
+                }).catch(error => {
+                    console.error('Error logging event:', error);
+                });
+            }
+        };
+
+        // Create a timeline
+        const timeline = [trial];
+
+        // Start the experiment
+        jsPsych.run(timeline);
+    </script>
+</body>
+</html>

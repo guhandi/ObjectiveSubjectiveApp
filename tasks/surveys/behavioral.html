@@ -1,183 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daily Behavioral Survey</title>
-    <script>
-        async function logEvent(itemId, value) {
-            const payload = { "item_id": itemId, "value": value };
-            await fetch('/api/log', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    subject_id: 'demo',
-                    session_id: 'sess_demo',
-                    app_id: 'behavioral',
-                    app_type: 'survey',
-                    event_type: 'survey_item',
-                    event_index: 0, // This should be updated dynamically
-                    ts_utc: new Date().toISOString(),
-                    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    payload: payload
-                })
-            });
-        }
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Daily Behavioral Survey</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
+	<script src="/tasks/common.js"></script>
+	<script>
+		async function handleSubmit() {
+			const formData = new FormData(document.getElementById('surveyForm'));
+			let event_index = 0;
+			const summaryData = {};
 
-        function handleSubmit() {
-            const formData = new FormData(document.querySelector('form'));
-            let event_index = 0;
-            const summaryData = {};
+			for (const [key, value] of formData.entries()) {
+				await logEventGeneric({
+					eventType: 'survey_item',
+					itemId: key,
+					eventIndex: event_index,
+					payload: { value: value }
+				});
+				summaryData[key] = value;
+				event_index++;
+			}
 
-            formData.forEach((value, key) => {
-                logEvent(key, value, event_index);
-                summaryData[key] = value;
-                event_index++;
-            });
+			await finishSession();
+			alert('Survey submitted!');
+		}
 
-            fetch('/api/session_complete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    subject_id: 'demo',
-                    session_id: 'sess_demo',
-                    app_id: 'behavioral',
-                    app_type: 'survey',
-                    started_ts_utc: new Date().toISOString(),
-                    ended_ts_utc: new Date().toISOString(),
-                    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    summary: summaryData,
-                    events_count: formData.size
-                })
-            });
-            alert('Survey submitted!');
-        }
-    </script>
+		window.addEventListener('load', async () => {
+			await initializeSessionMetadata('behavioral', 'survey');
+		});
+	</script>
 </head>
 <body>
-    <div id="metadataModal" class="modal">
-        <div class="modal-content">
-            <span id="closeModal" style="float:right;">&times;</span>
-            <h2>Enter Metadata</h2>
-            <form id="metadataForm">
-                <label for="subject_id">Subject ID:</label>
-                <input type="text" id="subject_id" name="subject_id" required><br><br>
-                <label for="session_id">Session ID:</label>
-                <input type="text" id="session_id" name="session_id" readonly><br><br>
-                <label for="start_timestamp">Start Timestamp:</label>
-                <input type="text" id="start_timestamp" name="start_timestamp" readonly><br><br>
-                <button type="submit">Submit</button>
-            </form>
-        </div>
-    </div>
+	<h1>Daily Behavioral Survey</h1>
+	<form id="surveyForm" onsubmit="event.preventDefault(); handleSubmit();">
+		<label for="caffeine_after_noon">Did you have caffeine after 12:00?</label><br>
+		<input type="radio" id="caffeine_no" name="caffeine_after_noon" value="No"> No
+		<input type="radio" id="caffeine_yes" name="caffeine_after_noon" value="Yes"> Yes
+		<br><br>
 
-    <h1>Daily Behavioral Survey</h1>
-    <form onsubmit="event.preventDefault(); handleSubmit();">
-        <label for="caffeine_after_noon">Did you have caffeine after 12:00?</label><br>
-        <input type="radio" id="caffeine_no" name="caffeine_after_noon" value="No"> No
-        <input type="radio" id="caffeine_yes" name="caffeine_after_noon" value="Yes"> Yes
-        <br><br>
+		<label for="alcohol_units">Alcohol units today</label>
+		<input type="range" id="alcohol_units" name="alcohol_units" min="0" max="3" value="0">
+		<br><br>
 
-        <label for="alcohol_units">Alcohol units today</label>
-        <input type="range" id="alcohol_units" name="alcohol_units" min="0" max="3" value="0">
-        <br><br>
+		<label for="exercise_min_band">Minutes of exercise today</label><br>
+		<input type="radio" name="exercise_min_band" value="0"> 0
+		<input type="radio" name="exercise_min_band" value="10"> 10
+		<input type="radio" name="exercise_min_band" value="20"> 20
+		<input type="radio" name="exercise_min_band" value="30"> 30
+		<input type="radio" name="exercise_min_band" value="45"> 45
+		<input type="radio" name="exercise_min_band" value="60"> 60+
+		<br><br>
 
-        <label for="exercise_min_band">Minutes of exercise today</label><br>
-        <input type="radio" name="exercise_min_band" value="0"> 0
-        <input type="radio" name="exercise_min_band" value="10"> 10
-        <input type="radio" name="exercise_min_band" value="20"> 20
-        <input type="radio" name="exercise_min_band" value="30"> 30
-        <input type="radio" name="exercise_min_band" value="45"> 45
-        <input type="radio" name="exercise_min_band" value="60"> 60+
-        <br><br>
+		<label for="outdoor_light_min_band">Time outside / light exposure</label><br>
+		<input type="radio" name="outdoor_light_min_band" value="0"> 0
+		<input type="radio" name="outdoor_light_min_band" value="10"> 10
+		<input type="radio" name="outdoor_light_min_band" value="20"> 20
+		<input type="radio" name="outdoor_light_min_band" value="30"> 30
+		<input type="radio" name="outdoor_light_min_band" value="60"> 60
+		<input type="radio" name="outdoor_light_min_band" value="90"> 90+
+		<br><br>
 
-        <label for="outdoor_light_min_band">Time outside / light exposure</label><br>
-        <input type="radio" name="outdoor_light_min_band" value="0"> 0
-        <input type="radio" name="outdoor_light_min_band" value="10"> 10
-        <input type="radio" name="outdoor_light_min_band" value="20"> 20
-        <input type="radio" name="outdoor_light_min_band" value="30"> 30
-        <input type="radio" name="outdoor_light_min_band" value="60"> 60
-        <input type="radio" name="outdoor_light_min_band" value="90"> 90+
-        <br><br>
+		<label for="deep_work_min_band">Minutes of focused work</label><br>
+		<input type="radio" name="deep_work_min_band" value="0"> 0
+		<input type="radio" name="deep_work_min_band" value="30"> 30
+		<input type="radio" name="deep_work_min_band" value="60"> 60
+		<input type="radio" name="deep_work_min_band" value="90"> 90
+		<input type="radio" name="deep_work_min_band" value="120"> 120+
+		<br><br>
 
-        <label for="deep_work_min_band">Minutes of focused work</label><br>
-        <input type="radio" name="deep_work_min_band" value="0"> 0
-        <input type="radio" name="deep_work_min_band" value="30"> 30
-        <input type="radio" name="deep_work_min_band" value="60"> 60
-        <input type="radio" name="deep_work_min_band" value="90"> 90
-        <input type="radio" name="deep_work_min_band" value="120"> 120+
-        <br><br>
+		<label for="social_partner_min_band">Minutes with partner</label><br>
+		<input type="radio" name="social_partner_min_band" value="0"> 0
+		<input type="radio" name="social_partner_min_band" value="15"> 15
+		<input type="radio" name="social_partner_min_band" value="60"> 60
+		<input type="radio" name="social_partner_min_band" value="120"> 120
+		<input type="radio" name="social_partner_min_band" value="180"> 180+
+		<br><br>
 
-        <label for="social_partner_min_band">Minutes with partner</label><br>
-        <input type="radio" name="social_partner_min_band" value="0"> 0
-        <input type="radio" name="social_partner_min_band" value="15"> 15
-        <input type="radio" name="social_partner_min_band" value="60"> 60
-        <input type="radio" name="social_partner_min_band" value="120"> 120
-        <input type="radio" name="social_partner_min_band" value="180"> 180+
-        <br><br>
+		<label for="social_friends_min_band">Minutes with friends/others</label><br>
+		<input type="radio" name="social_friends_min_band" value="0"> 0
+		<input type="radio" name="social_friends_min_band" value="15"> 15
+		<input type="radio" name="social_friends_min_band" value="60"> 60
+		<input type="radio" name="social_friends_min_band" value="120"> 120
+		<input type="radio" name="social_friends_min_band" value="180"> 180+
+		<br><br>
 
-        <label for="social_friends_min_band">Minutes with friends/others</label><br>
-        <input type="radio" name="social_friends_min_band" value="0"> 0
-        <input type="radio" name="social_friends_min_band" value="15"> 15
-        <input type="radio" name="social_friends_min_band" value="60"> 60
-        <input type="radio" name="social_friends_min_band" value="120"> 120
-        <input type="radio" name="social_friends_min_band" value="180"> 180+
-        <br><br>
+		<label for="gaming_min_band">Minutes gaming/leisure</label><br>
+		<input type="radio" name="gaming_min_band" value="0"> 0
+		<input type="radio" name="gaming_min_band" value="15"> 15
+		<input type="radio" name="gaming_min_band" value="30"> 30
+		<input type="radio" name="gaming_min_band" value="60"> 60
+		<input type="radio" name="gaming_min_band" value="120"> 120
+		<input type="radio" name="gaming_min_band" value="180"> 180+
+		<br><br>
 
-        <label for="gaming_min_band">Minutes gaming/leisure</label><br>
-        <input type="radio" name="gaming_min_band" value="0"> 0
-        <input type="radio" name="gaming_min_band" value="15"> 15
-        <input type="radio" name="gaming_min_band" value="30"> 30
-        <input type="radio" name="gaming_min_band" value="60"> 60
-        <input type="radio" name="gaming_min_band" value="120"> 120
-        <input type="radio" name="gaming_min_band" value="180"> 180+
-        <br><br>
+		<label for="illness_or_travel">Were you sick or traveling?</label><br>
+		<input type="radio" name="illness_or_travel" value="None"> None
+		<input type="radio" name="illness_or_travel" value="Illness"> Illness
+		<input type="radio" name="illness_or_travel" value="Travel"> Travel
+		<br><br>
 
-        <label for="illness_or_travel">Were you sick or traveling?</label><br>
-        <input type="radio" name="illness_or_travel" value="None"> None
-        <input type="radio" name="illness_or_travel" value="Illness"> Illness
-        <input type="radio" name="illness_or_travel" value="Travel"> Travel
-        <br><br>
-
-        <button type="submit">Submit</button>
-    </form>
-
-    <script>
-        // Open the modal
-        window.onload = function() {
-            document.getElementById('metadataModal').style.display = 'block';
-            document.getElementById('session_id').value = uuid.v4();
-            document.getElementById('start_timestamp').value = new Date().toISOString();
-        };
-
-        // Close the modal
-        document.getElementById('closeModal').onclick = function() {
-            document.getElementById('metadataModal').style.display = 'none';
-        };
-
-        // Submit metadata
-        document.getElementById('metadataForm').onsubmit = function(event) {
-            event.preventDefault();
-            const subject_id = document.getElementById('subject_id').value;
-            const session_id = document.getElementById('session_id').value;
-            const start_timestamp = document.getElementById('start_timestamp').value;
-
-            fetch('/start-survey', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ subject_id, session_id, start_timestamp })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Success:', data);
-                document.getElementById('metadataModal').style.display = 'none';
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
-        };
-    </script>
+		<button type="submit">Submit</button>
+	</form>
 </body>
 </html>

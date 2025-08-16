@@ -10,12 +10,19 @@
       #timer { position: fixed; top: 10px; right: 10px; font-size: 20px; }
       #key-mapping { position: fixed; top: 10px; left: 10px; font-size: 20px; }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
+    <script src="/tasks/common.js"></script>
   </head>
   <body>
     <div id="timer"></div>
     <div id="key-mapping">Left=red, Up=green, Right=blue, Down=yellow</div>
   </body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
+  <script src="/tasks/common.js"></script>
   <script>
+    window.onload = function() {
+        initializeSessionMetadata('stroop', 'cognition');
+    };
     // --- Parameters ---
     const PRACTICE_TRIALS = 2;
     const TEST_TRIALS = 10;
@@ -44,26 +51,12 @@
     }
 
     // --- Timeline ---
-    const jsPsych = initJsPsych({ on_finish: function() {
+    const jsPsych = initJsPsych({ on_finish: async function() {
       // Compute session summary
       const data = jsPsych.data.get().filter({task_id: TASK_ID});
       const summary = computeSummary(data);
       // Send session complete event
-      fetch('/api/session_complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject_id: participant_id,
-          session_id: 'sess_demo',
-          app_id: TASK_ID,
-          app_type: 'cognition',
-          started_ts_utc: new Date().toISOString(),
-          ended_ts_utc: new Date().toISOString(),
-          tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          summary: summary,
-          events_count: data.count()
-        })
-      });
+      await finishSession();
     }});
     const participant_id = getParticipantId();
     const browser_info = getBrowserInfo();
@@ -136,30 +129,21 @@
           data.timestamp_local = getTimestamp();
           data.browser_info = browser_info;
           // Log event to server
-          fetch('/api/log', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              subject_id: participant_id,
-              session_id: 'sess_demo',
-              app_id: TASK_ID,
-              app_type: 'cognition',
-              event_type: 'trial',
-              event_index: idx,
-              ts_utc: new Date().toISOString(),
-              tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              payload: {
-                condition: trial.congruency,
-                rt_ms: data.rt,
-                correct: data.correct,
-                key_pressed: data.response,
-                expected_key: trial.correct_response,
-                word: trial.stimulus_word,
-                font_color: trial.stimulus_color,
-                stim_id: `${trial.stimulus_word}_${trial.stimulus_color}`,
-                phase: block
-              }
-            })
+          logEventGeneric({
+            eventType: 'task_trial',
+            itemId: `stroop_trial_${idx}`,
+            eventIndex: idx,
+            payload: {
+              condition: trial.congruency,
+              rt_ms: data.rt,
+              correct: data.correct,
+              key_pressed: data.response,
+              expected_key: trial.correct_response,
+              word: trial.stimulus_word,
+              font_color: trial.stimulus_color,
+              stim_id: `${trial.stimulus_word}_${trial.stimulus_color}`,
+              phase: block
+            }
           });
         }
       }));
@@ -224,7 +208,10 @@
       }
     });
 
-    jsPsych.run(timeline);
+    window.addEventListener('load', async () => {
+      await initializeSessionMetadata('stroop', 'task');
+      jsPsych.run(timeline);
+    });
 
     // Timer
     let totalTime = 60; // 60 seconds for the task
