@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Stroop Task</title>
+    <script src="https://unpkg.com/jspsych@8.2.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+    <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <style>
+      body { background: #fff; }
+      #timer { position: fixed; top: 10px; right: 10px; font-size: 20px; }
+      #key-mapping { position: fixed; top: 10px; left: 10px; font-size: 20px; }
+    </style>
+  </head>
+  <body>
+    <div id="timer"></div>
+    <div id="key-mapping">Left=red, Up=green, Right=blue, Down=yellow</div>
+  </body>
+  <script>
+    // --- Parameters ---
+    const PRACTICE_TRIALS = 2;
+    const TEST_TRIALS = 10;
+    const FIXATION = 500;
+    const STIM_WINDOW = 2000;
+    const ITI = 500;
+    const COLORS = ["red", "green", "blue", "yellow"];
+    const WORDS = ["RED", "GREEN", "BLUE", "YELLOW"];
+    const KEYS = { red: 'ArrowLeft', green: 'ArrowUp', blue: 'ArrowRight', yellow: 'ArrowDown' };
+    const TASK_ID = 'stroop';
+
+    // --- Helper Functions ---
+    function getParticipantId() {
+      let id = localStorage.getItem('participant_id');
+      if (!id) {
+        id = prompt('Enter your participant ID:');
+        localStorage.setItem('participant_id', id);
+      }
+      return id;
+    }
+    function getBrowserInfo() {
+      return navigator.userAgent;
+    }
+    function getTimestamp() {
+      return new Date().toLocaleString();
+    }
+
+    // --- Timeline ---
+    const jsPsych = initJsPsych({ on_finish: function() {
+      // Compute session summary
+      const data = jsPsych.data.get().filter({task_id: TASK_ID});
+      const summary = computeSummary(data);
+      // Send session complete event
+      fetch('/api/session_complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject_id: participant_id,
+          session_id: 'sess_demo',
+          app_id: TASK_ID,
+          app_type: 'cognition',
+          started_ts_utc: new Date().toISOString(),
+          ended_ts_utc: new Date().toISOString(),
+          tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          summary: summary,
+          events_count: data.count()
+        })
+      });
+    }});
+    const participant_id = getParticipantId();
+    const browser_info = getBrowserInfo();
+
+    // Instructions
+    const instructions = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <h2>Stroop Task</h2>
+        <p>Words naming colours will appear, each printed in a coloured font.<br>
+        Ignore the word itself and press the key that matches the ink colour:<br>
+        <b>Left=red, Up=green, Right=blue, Down=yellow</b>.<br>
+        Respond as quickly and accurately as possible.</p>
+        <p>Press the SPACEBAR to begin.</p>
+      `,
+      choices: [' ']
+    };
+
+    // --- Trial Generation ---
+    function make_stroop_trials(n, block) {
+      // 50% congruent, 50% incongruent
+      let congruent = [];
+      let incongruent = [];
+      COLORS.forEach(color => {
+        WORDS.forEach(word => {
+          const is_congruent = word.toLowerCase() === color;
+          const trial = {
+            stimulus_word: word,
+            stimulus_color: color,
+            congruency: is_congruent ? "congruent" : "incongruent",
+            correct_response: KEYS[color]
+          };
+          if (is_congruent) congruent.push(trial);
+          else incongruent.push(trial);
+        });
+      });
+      // Sample trials
+      let trials = [];
+      let n_cong = Math.floor(n/2);
+      let n_incong = n - n_cong;
+      trials = trials.concat(jsPsych.randomization.sampleWithReplacement(congruent, n_cong));
+      trials = trials.concat(jsPsych.randomization.sampleWithReplacement(incongruent, n_incong));
+      trials = jsPsych.randomization.shuffle(trials);
+      // Format for jsPsych
+      return trials.map((trial, idx) => ({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `<div style=\"color:${trial.stimulus_color}; font-size: 48px;\">${trial.stimulus_word}</div>`,
+        choices: Object.values(KEYS),
+        trial_duration: STIM_WINDOW,
+        data: {
+          participant_id,
+          task_id: TASK_ID,
+          block,
+          trial: idx+1,
+          condition: trial.congruency,
+          stimulus: `${trial.stimulus_word}_${trial.stimulus_color}`,
+          key: '',
+          rt_ms: '',
+          correct: '',
+          timestamp_local: '',
+          browser_info
+        },
+        on_start: function(trial) {
+          trial.data.timestamp_local = getTimestamp();
+        },
+        on_finish: function(data) {
+          data.key = data.response;
+          data.rt_ms = data.rt;
+          data.correct = (data.response && data.response.toLowerCase() === trial.correct_response) ? 1 : 0;
+          data.timestamp_local = getTimestamp();
+          data.browser_info = browser_info;
+          // Log event to server
+          fetch('/api/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              subject_id: participant_id,
+              session_id: 'sess_demo',
+              app_id: TASK_ID,
+              app_type: 'cognition',
+              event_type: 'trial',
+              event_index: idx,
+              ts_utc: new Date().toISOString(),
+              tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              payload: {
+                condition: trial.congruency,
+                rt_ms: data.rt,
+                correct: data.correct,
+                key_pressed: data.response,
+                expected_key: trial.correct_response,
+                word: trial.stimulus_word,
+                font_color: trial.stimulus_color,
+                stim_id: `${trial.stimulus_word}_${trial.stimulus_color}`,
+                phase: block
+              }
+            })
+          });
+        }
+      }));
+    }
+
+    // --- Timeline Construction ---
+    let timeline = [instructions];
+    // Practice block
+    make_stroop_trials(PRACTICE_TRIALS, 'practice').forEach(trial => {
+      // Fixation
+      timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<div style="font-size:48px;">+</div>',
+        choices: "NO_KEYS",
+        trial_duration: FIXATION,
+        data: { participant_id, task_id: TASK_ID, block: 'practice', trial: '', condition: 'fixation', stimulus: '+', key: '', rt_ms: '', correct: '', timestamp_local: '', browser_info }
+      });
+      // Stroop trial
+      timeline.push(trial);
+      // ITI
+      timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '',
+        choices: "NO_KEYS",
+        trial_duration: ITI,
+        data: { participant_id, task_id: TASK_ID, block: 'practice', trial: '', condition: 'iti', stimulus: '', key: '', rt_ms: '', correct: '', timestamp_local: '', browser_info }
+      });
+    });
+    // Test block
+    make_stroop_trials(TEST_TRIALS, 'test').forEach(trial => {
+      timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<div style="font-size:48px;">+</div>',
+        choices: "NO_KEYS",
+        trial_duration: FIXATION,
+        data: { participant_id, task_id: TASK_ID, block: 'test', trial: '', condition: 'fixation', stimulus: '+', key: '', rt_ms: '', correct: '', timestamp_local: '', browser_info }
+      });
+      timeline.push(trial);
+      timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '',
+        choices: "NO_KEYS",
+        trial_duration: ITI,
+        data: { participant_id, task_id: TASK_ID, block: 'test', trial: '', condition: 'iti', stimulus: '', key: '', rt_ms: '', correct: '', timestamp_local: '', browser_info }
+      });
+    });
+
+    // End screen with download button
+    timeline.push({
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <h2>Thanks for participating!</h2>
+        <p>Click the button below to download your data as CSV.</p>
+        <button id="download-csv">Download CSV</button>
+      `,
+      choices: "NO_KEYS",
+      trial_duration: null,
+      on_load: function() {
+        document.getElementById('download-csv').onclick = function() {
+          jsPsych.data.get().localSave('csv', 'stroop_data.csv');
+        }
+      }
+    });
+
+    jsPsych.run(timeline);
+
+    // Timer
+    let totalTime = 60; // 60 seconds for the task
+    let timerInterval = setInterval(() => {
+      totalTime--;
+      document.getElementById('timer').innerText = `Time left: ${totalTime}s`;
+      if (totalTime <= 0) {
+        clearInterval(timerInterval);
+        jsPsych.endExperiment('Time is up!');
+      }
+    }, 1000);
+
+    function computeSummary(data) {
+      // Compute session summary
+      const trials = data.values();
+      const n_trials_main = trials.length;
+      const n_correct_main = trials.filter(trial => trial.correct === 1).length;
+      const acc_main = n_correct_main / n_trials_main;
+      const rt_main = trials.filter(trial => trial.rt_ms !== null && trial.rt_ms >= 150).map(trial => trial.rt_ms);
+      const median_rt_ms_main = jsPsych.data.median(rt_main);
+      const congruent_rts = trials.filter(trial => trial.condition === 'congruent' && trial.rt_ms !== null && trial.rt_ms >= 150).map(trial => trial.rt_ms);
+      const incongruent_rts = trials.filter(trial => trial.condition === 'incongruent' && trial.rt_ms !== null && trial.rt_ms >= 150).map(trial => trial.rt_ms);
+      const median_rt_ms_congruent = jsPsych.data.median(congruent_rts);
+      const median_rt_ms_incongruent = jsPsych.data.median(incongruent_rts);
+      const stroop_incongruent_delta_ms = median_rt_ms_incongruent - median_rt_ms_congruent;
+      return {
+        n_trials_main,
+        n_correct_main,
+        acc_main,
+        median_rt_ms_main,
+        median_rt_ms_congruent,
+        median_rt_ms_incongruent,
+        stroop_incongruent_delta_ms
+      };
+    }
+  </script>
+</html> 

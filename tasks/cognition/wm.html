@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1-Minute 1-Back Task (Working Memory)</title>
+    <script src="https://unpkg.com/jspsych@8.2.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+    <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <style>
+        body { background: #fff; }
+        #timer { position: fixed; top: 10px; right: 10px; font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div id="metadataModal" class="modal">
+        <div class="modal-content">
+            <span id="closeModal" style="float:right;">&times;</span>
+            <h2>Enter Metadata</h2>
+            <form id="metadataForm">
+                <label for="subject_id">Subject ID:</label>
+                <input type="text" id="subject_id" name="subject_id" required><br><br>
+                <label for="session_id">Session ID:</label>
+                <input type="text" id="session_id" name="session_id" readonly><br><br>
+                <label for="start_timestamp">Start Timestamp:</label>
+                <input type="text" id="start_timestamp" name="start_timestamp" readonly><br><br>
+                <button type="submit">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="timer"></div>
+
+    <script>
+        // Open the modal
+        window.onload = function() {
+            document.getElementById('metadataModal').style.display = 'block';
+            document.getElementById('session_id').value = uuid.v4();
+            document.getElementById('start_timestamp').value = new Date().toISOString();
+        };
+
+        // Close the modal
+        document.getElementById('closeModal').onclick = function() {
+            document.getElementById('metadataModal').style.display = 'none';
+        };
+
+        // Submit metadata
+        document.getElementById('metadataForm').onsubmit = function(event) {
+            event.preventDefault();
+            const subject_id = document.getElementById('subject_id').value;
+            const session_id = document.getElementById('session_id').value;
+            const start_timestamp = document.getElementById('start_timestamp').value;
+
+            fetch('/start-survey', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ subject_id, session_id, start_timestamp })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                document.getElementById('metadataModal').style.display = 'none';
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        };
+    </script>
+</body>
+<script>
+    const PRACTICE_TRIALS = 10;
+    const MAIN_DURATION = 60000; // 60 seconds
+    const STIMULUS_DURATION = 500;
+    const BLANK_DURATION = 300;
+    const TASK_ID = 'nback_1min_v1';
+    const APP_TYPE = 'cognition';
+
+    const subject_id = 'demo';
+    const session_id = 'sess_demo';
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    let started_ts_utc;
+
+    function logEventToServer(eventData) {
+        fetch('/api/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subject_id: subject_id,
+                session_id: session_id,
+                app_id: TASK_ID,
+                app_type: APP_TYPE,
+                event_type: 'trial',
+                event_index: eventData.trial_index,
+                ts_utc: new Date().toISOString(),
+                tz: tz,
+                payload: eventData
+            })
+        });
+    }
+
+    function completeSessionToServer(summary, eventsCount) {
+        fetch('/api/session_complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subject_id: subject_id,
+                session_id: session_id,
+                app_id: TASK_ID,
+                app_type: APP_TYPE,
+                started_ts_utc: started_ts_utc,
+                ended_ts_utc: new Date().toISOString(),
+                tz: tz,
+                summary: summary,
+                events_count: eventsCount
+            })
+        });
+    }
+
+    const jsPsych = initJsPsych({
+        on_finish: function() {
+            const all_trials_data = jsPsych.data.get().filter({task_id: TASK_ID, phase: 'main'});
+            const summary = computeSummary(all_trials_data);
+            const total_events_count = jsPsych.data.get().filter({event_type: 'trial'}).count();
+
+            completeSessionToServer(summary, total_events_count);
+
+            document.body.innerHTML = `
+                <h2>Thanks for participating!</h2>
+                <p>Your data has been saved.</p>
+                <p><a href="/">Return to Dashboard</a></p>
+            `;
+        }
+    });
+
+    const instructions = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <h2>1-Minute 1-Back Task</h2>
+            <p>You will see a series of letters, one at a time.<br>
+            Press the spacebar if the letter is the same as the one immediately before it.<br>
+            Try to respond quickly and accurately.<br>
+            The task lasts about 1 minute.</p>
+            <p>Press the SPACEBAR to begin.</p>
+        `,
+        choices: [' ']
+    };
+
+    function make_nback_trials(n, block) {
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+        let trials = [];
+        let previous_stimulus = null;
+
+        for (let i = 0; i < n; i++) {
+            const is_target = Math.random() < 0.25;
+            const stimulus = is_target && previous_stimulus ? previous_stimulus : letters[Math.floor(Math.random() * letters.length)];
+
+            trials.push({
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: `<div style="font-size:48px;">${stimulus}</div>`,
+                choices: [' '],
+                trial_duration: STIMULUS_DURATION,
+                data: {
+                    subject_id: subject_id,
+                    session_id: session_id,
+                    app_id: TASK_ID,
+                    app_type: APP_TYPE,
+                    phase: block,
+                    trial_index: i,
+                    stimulus: stimulus,
+                    is_target: is_target ? 1 : 0,
+                    key_pressed: null,
+                    correct: 0,
+                    rt_ms: null,
+                    ts_utc: null,
+                    tz: tz
+                },
+                on_start: function(trial) {
+                    trial.data.ts_utc = new Date().toISOString();
+                },
+                on_finish: function(data) {
+                    data.key_pressed = data.response ? 'space' : null;
+                    data.correct = (data.is_target && data.key_pressed) || (!data.is_target && !data.key_pressed) ? 1 : 0;
+                    data.rt_ms = data.rt;
+                    logEventToServer(data);
+                }
+            });
+
+            trials.push({
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: '',
+                choices: "NO_KEYS",
+                trial_duration: BLANK_DURATION,
+                data: { phase: 'blank' }
+            });
+
+            previous_stimulus = stimulus;
+        }
+        return trials;
+    }
+
+    let timeline = [];
+
+    timeline.push(instructions);
+
+    make_nback_trials(PRACTICE_TRIALS, 'practice').forEach(trial => timeline.push(trial));
+
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<p>Practice complete. Press SPACEBAR to start the main task.</p>',
+        choices: [' ']
+    });
+
+    make_nback_trials(35, 'main').forEach(trial => timeline.push(trial));
+
+    started_ts_utc = new Date().toISOString();
+    jsPsych.run(timeline);
+
+    function computeSummary(data) {
+        const trials = data.values();
+        const n_trials = trials.length;
+        const n_correct = trials.filter(trial => trial.correct === 1).length;
+        const accuracy = n_correct / n_trials;
+        const median_rt_ms = jsPsych.data.median(trials.map(trial => trial.rt_ms));
+        const n_targets = trials.filter(trial => trial.is_target === 1).length;
+
+        return {
+            n_trials,
+            n_correct,
+            accuracy,
+            median_rt_ms,
+            n_targets
+        };
+    }
+</script>
+</html>

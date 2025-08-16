@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psychomotor Vigilance Task (PVT-1min)</title>
+    <script src="https://unpkg.com/jspsych@8.2.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+    <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <style>
+        body { background: #fff; }
+        #timer { position: fixed; top: 10px; right: 10px; font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div id="metadataModal" class="modal">
+        <div class="modal-content">
+            <span id="closeModal" style="float:right;">&times;</span>
+            <h2>Enter Metadata</h2>
+            <form id="metadataForm">
+                <label for="subject_id">Subject ID:</label>
+                <input type="text" id="subject_id" name="subject_id" required><br><br>
+                <label for="session_id">Session ID:</label>
+                <input type="text" id="session_id" name="session_id" readonly><br><br>
+                <label for="start_timestamp">Start Timestamp:</label>
+                <input type="text" id="start_timestamp" name="start_timestamp" readonly><br><br>
+                <button type="submit">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="timer"></div>
+
+    <script>
+        // Open the modal
+        window.onload = function() {
+            document.getElementById('metadataModal').style.display = 'block';
+            document.getElementById('session_id').value = uuid.v4();
+            document.getElementById('start_timestamp').value = new Date().toISOString();
+        };
+
+        // Close the modal
+        document.getElementById('closeModal').onclick = function() {
+            document.getElementById('metadataModal').style.display = 'none';
+        };
+
+        // Submit metadata
+        document.getElementById('metadataForm').onsubmit = function(event) {
+            event.preventDefault();
+            const subject_id = document.getElementById('subject_id').value;
+            const session_id = document.getElementById('session_id').value;
+            const start_timestamp = document.getElementById('start_timestamp').value;
+
+            fetch('/start-survey', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ subject_id, session_id, start_timestamp })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                document.getElementById('metadataModal').style.display = 'none';
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        };
+    </script>
+</body>
+<script>
+    const PRACTICE_TRIALS = 2;
+    const MAIN_DURATION = 6000; // 60 seconds
+    const STIMULUS_DURATION = 1500;
+    const ISI_MIN = 2000;
+    const ISI_MAX = 5000;
+    const TASK_ID = 'pvt_1min_v1';
+    const APP_TYPE = 'cognition';
+
+    const subject_id = 'demo';
+    const session_id = 'sess_demo';
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    let started_ts_utc;
+
+    function logEventToServer(eventData) {
+        fetch('/api/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subject_id: subject_id,
+                session_id: session_id,
+                app_id: TASK_ID,
+                app_type: APP_TYPE,
+                event_type: 'trial',
+                event_index: eventData.trial_index,
+                ts_utc: new Date().toISOString(),
+                tz: tz,
+                payload: eventData
+            })
+        });
+    }
+
+    function completeSessionToServer(summary, eventsCount) {
+        fetch('/api/session_complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subject_id: subject_id,
+                session_id: session_id,
+                app_id: TASK_ID,
+                app_type: APP_TYPE,
+                started_ts_utc: started_ts_utc,
+                ended_ts_utc: new Date().toISOString(),
+                tz: tz,
+                summary: summary,
+                events_count: eventsCount
+            })
+        });
+    }
+
+    const jsPsych = initJsPsych({
+        on_finish: function() {
+            const all_trials_data = jsPsych.data.get().filter({task_id: TASK_ID, phase: 'main'});
+            const summary = computeSummary(all_trials_data);
+            const total_events_count = jsPsych.data.get().filter({event_type: 'trial'}).count();
+
+            completeSessionToServer(summary, total_events_count);
+
+            document.body.innerHTML = `
+                <h2>Thanks for participating!</h2>
+                <p>Your data has been saved.</p>
+                <p><a href="/">Return to Dashboard</a></p>
+            `;
+        }
+    });
+
+    const instructions = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <h2>Psychomotor Vigilance Task</h2>
+            <p>You will see a circle appear on the screen at random intervals. Press the spacebar as quickly as you can each time it appears.<br>
+            Try not to anticipate the stimulus.<br>
+            Reaction times will be measured.<br>
+            The task lasts 1 minute.</p>
+            <p>Press the SPACEBAR to begin.</p>
+        `,
+        choices: [' ']
+    };
+
+    function make_pvt_trials(n, block) {
+        let trials = [];
+        for (let i = 0; i < n; i++) {
+            const isi = Math.floor(Math.random() * (ISI_MAX - ISI_MIN + 1)) + ISI_MIN;
+            trials.push({
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: '<div style="font-size:48px;">+</div>',
+                choices: "NO_KEYS",
+                trial_duration: isi,
+                data: { phase: 'fixation' }
+            });
+            trials.push({
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: '<div style="font-size:48px;">●</div>',
+                choices: [' '],
+                trial_duration: STIMULUS_DURATION,
+                data: {
+                    subject_id: subject_id,
+                    session_id: session_id,
+                    app_id: TASK_ID,
+                    app_type: APP_TYPE,
+                    phase: block,
+                    trial_index: i,
+                    stimulus_id: `circle_${i}`,
+                    rt_ms: null,
+                    correct: 0,
+                    ts_utc: null,
+                    tz: tz
+                },
+                on_start: function(trial) {
+                    trial.data.ts_utc = new Date().toISOString();
+                },
+                on_finish: function(data) {
+                    data.rt_ms = data.rt;
+                    data.correct = (data.rt !== null && data.rt <= STIMULUS_DURATION) ? 1 : 0;
+                    logEventToServer(data);
+                }
+            });
+        }
+        return trials;
+    }
+
+    let timeline = [];
+
+    timeline.push(instructions);
+
+    make_pvt_trials(PRACTICE_TRIALS, 'practice').forEach(trial => timeline.push(trial));
+
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<p>Practice complete. Press SPACEBAR to start the main task.</p>',
+        choices: [' ']
+    });
+
+    make_pvt_trials(100, 'main').forEach(trial => timeline.push(trial));
+
+    started_ts_utc = new Date().toISOString();
+    jsPsych.run(timeline);
+
+    function computeSummary(data) {
+        const trials = data.values();
+        const n_trials = trials.length;
+        const n_lapses = trials.filter(trial => trial.rt_ms > 500).length;
+        const median_rt_ms = jsPsych.data.median(trials.map(trial => trial.rt_ms));
+        const min_rt_ms = Math.min(...trials.map(trial => trial.rt_ms));
+        const max_rt_ms = Math.max(...trials.map(trial => trial.rt_ms));
+
+        return {
+            n_trials,
+            n_lapses,
+            median_rt_ms,
+            min_rt_ms,
+            max_rt_ms
+        };
+    }
+</script>
+</html>
