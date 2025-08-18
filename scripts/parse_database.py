@@ -28,6 +28,7 @@ def parse_survey_data(
         .query("item_id not in @drop_items")
         .reset_index()
         .pivot(index=id_cols, columns='item_id', values='value')
+        .reset_index([1,2])
     )
     return res_df
 
@@ -51,7 +52,10 @@ def parse_pvt(
             .cumcount() + 1
     )
     if not trial_level:
-        res_df = res_df.groupby(id_cols)[['rt_ms']].mean()
+        res_df = (
+            res_df.groupby(id_cols)[['rt_ms']].mean()
+            .reset_index([1,2])
+        )
 
     return res_df    
 
@@ -96,7 +100,7 @@ def parse_stroop(
         res_df
         .groupby(id_cols)
         .apply(score_stroop)
-        .reset_index()
+        .reset_index([1,2])
     )
 
     return stroop_scores

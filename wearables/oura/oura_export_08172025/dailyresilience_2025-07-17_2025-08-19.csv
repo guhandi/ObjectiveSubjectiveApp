@@ -1,0 +1,6 @@
+day,contributors,level,id
+"2025-08-09","{'sleep_recovery': 41.5, 'daytime_recovery': 33.5, 'stress': 76.7}","adequate","dbe39092-5f9f-4388-8db4-7e42b4042c05"
+"2025-08-10","{'sleep_recovery': 36.2, 'daytime_recovery': 29.0, 'stress': 80.7}","adequate","f8643499-b997-442e-8206-4b919ed4258a"
+"2025-08-13","{'sleep_recovery': 39.5, 'daytime_recovery': 34.2, 'stress': 70.2}","adequate","141f23cb-f00b-4de4-881c-e89b85e06f1b"
+"2025-08-14","{'sleep_recovery': 35.7, 'daytime_recovery': 33.6, 'stress': 61.5}","adequate","2e9fdfcd-5160-4d8f-89ce-216910f545da"
+"2025-08-16","{'sleep_recovery': 36.6, 'daytime_recovery': 35.3, 'stress': 57.1}","adequate","84d59cea-d2d2-4ed6-8b46-972b7bd0b6ad"

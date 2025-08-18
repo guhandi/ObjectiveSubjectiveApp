@@ -1,0 +1,317 @@
+{
+  "library_version": "0.1.0",
+  "updated_at": "2025-08-18T04:12:12.451365Z",
+  "modalities": [
+    "survey",
+    "cognition",
+    "speech"
+  ],
+  "surveys": [
+    {
+      "id": "survey.daily_core.v1",
+      "name": "Daily Core",
+      "description": "Brief daily subjective state survey.",
+      "default_frequency": "daily",
+      "approx_burden_minutes": 1,
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "anchors": {
+          "1": "very low",
+          "3": "moderate",
+          "5": "very high"
+        }
+      },
+      "items": [
+        {
+          "id": "energy",
+          "prompt": "How was your energy today?",
+          "valence": "positive"
+        },
+        {
+          "id": "happiness",
+          "prompt": "How happy did you feel today?",
+          "valence": "positive"
+        },
+        {
+          "id": "productive",
+          "prompt": "How productive did you feel today?",
+          "valence": "positive"
+        },
+        {
+          "id": "social_fulfillment",
+          "prompt": "How socially fulfilled did you feel today?",
+          "valence": "positive"
+        },
+        {
+          "id": "stress",
+          "prompt": "How stressed did you feel today?",
+          "valence": "negative"
+        }
+      ]
+    },
+    {
+      "id": "survey.wellbeing.v1",
+      "name": "Wellbeing Survey",
+      "description": "Expanded affect and control appraisal.",
+      "default_frequency": "3x_week",
+      "approx_burden_minutes": 2,
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "anchors": {
+          "1": "not at all",
+          "3": "somewhat",
+          "5": "extremely"
+        }
+      },
+      "items": [
+        {
+          "id": "confident",
+          "prompt": "I felt confident."
+        },
+        {
+          "id": "control",
+          "prompt": "I felt in control."
+        },
+        {
+          "id": "overwhelmed",
+          "prompt": "I felt overwhelmed."
+        },
+        {
+          "id": "unexpected",
+          "prompt": "My day felt unexpected or chaotic."
+        },
+        {
+          "id": "active",
+          "prompt": "I felt active."
+        },
+        {
+          "id": "calm",
+          "prompt": "I felt calm."
+        },
+        {
+          "id": "cheerful",
+          "prompt": "I felt cheerful."
+        },
+        {
+          "id": "fresh",
+          "prompt": "I felt fresh and rested."
+        },
+        {
+          "id": "interested",
+          "prompt": "I felt interested and engaged."
+        }
+      ]
+    },
+    {
+      "id": "survey.behavioral.v1",
+      "name": "Behavioral Survey",
+      "description": "Daily behavior log (minutes/amounts and context flags).",
+      "default_frequency": "daily",
+      "approx_burden_minutes": 2,
+      "fields": [
+        {
+          "id": "alcohol_units",
+          "type": "number",
+          "unit": "standard_drinks",
+          "nullable": true
+        },
+        {
+          "id": "caffeine_servings",
+          "type": "number",
+          "unit": "servings",
+          "nullable": true
+        },
+        {
+          "id": "afternoon_nap_minutes",
+          "type": "number",
+          "unit": "minutes",
+          "nullable": true
+        },
+        {
+          "id": "deep_work_minutes",
+          "type": "number",
+          "unit": "minutes"
+        },
+        {
+          "id": "exercise_minutes",
+          "type": "number",
+          "unit": "minutes"
+        },
+        {
+          "id": "gaming_minutes",
+          "type": "number",
+          "unit": "minutes",
+          "nullable": true
+        },
+        {
+          "id": "illness",
+          "type": "boolean"
+        },
+        {
+          "id": "travel",
+          "type": "boolean"
+        },
+        {
+          "id": "outdoor_minutes",
+          "type": "number",
+          "unit": "minutes",
+          "nullable": true
+        },
+        {
+          "id": "social_friend_minutes",
+          "type": "number",
+          "unit": "minutes",
+          "nullable": true
+        },
+        {
+          "id": "social_partner_minutes",
+          "type": "number",
+          "unit": "minutes",
+          "nullable": true
+        }
+      ]
+    }
+  ],
+  "cognition": [
+    {
+      "id": "cog.pvt.v1",
+      "name": "Psychomotor Vigilance Task (PVT)",
+      "description": "Simple reaction time task sensitive to sleep loss and alertness.",
+      "approx_burden_minutes": 5,
+      "recommended_times_of_day": [
+        "morning",
+        "midday"
+      ],
+      "cooldown_minutes": 60,
+      "metrics": [
+        {
+          "id": "rt_ms_mean",
+          "type": "number",
+          "description": "Mean reaction time (ms)"
+        },
+        {
+          "id": "rt_ms_median",
+          "type": "number",
+          "description": "Median reaction time (ms)"
+        },
+        {
+          "id": "lapses_count",
+          "type": "number",
+          "description": "Count of RT > 500 ms"
+        },
+        {
+          "id": "false_starts_count",
+          "type": "number",
+          "description": "Premature responses"
+        }
+      ]
+    },
+    {
+      "id": "cog.stroop.v1",
+      "name": "Stroop Task",
+      "description": "Measures interference control; outputs RT and accuracy by congruency and composite indices.",
+      "approx_burden_minutes": 6,
+      "recommended_times_of_day": [
+        "morning",
+        "evening"
+      ],
+      "cooldown_minutes": 60,
+      "metrics": [
+        {
+          "id": "acc_congruent",
+          "type": "number",
+          "description": "Accuracy, congruent (%)"
+        },
+        {
+          "id": "acc_incongruent",
+          "type": "number",
+          "description": "Accuracy, incongruent (%)"
+        },
+        {
+          "id": "rt_congruent_ms",
+          "type": "number",
+          "description": "Mean RT, congruent (ms)"
+        },
+        {
+          "id": "rt_incongruent_ms",
+          "type": "number",
+          "description": "Mean RT, incongruent (ms)"
+        },
+        {
+          "id": "interference_ms",
+          "type": "number",
+          "description": "RT_incongruent - RT_congruent (ms)"
+        },
+        {
+          "id": "ies",
+          "type": "number",
+          "description": "Inverse Efficiency Score: mean RT / (1 - error rate)"
+        }
+      ]
+    }
+  ],
+  "speech": [
+    {
+      "id": "speech.morning_checkin.v1",
+      "name": "Morning Check-in",
+      "prompt": "In ~30 seconds, say how you slept and how you feel starting the day.",
+      "expected_duration_seconds": 30,
+      "features_extracted": [
+        "acoustics_f0",
+        "jitter",
+        "shimmer",
+        "speaking_rate_wpm",
+        "pause_fraction",
+        "sentiment_valence",
+        "arousal"
+      ],
+      "requires_transcription": true,
+      "default_frequency": "daily_morning"
+    },
+    {
+      "id": "speech.day_recap.v1",
+      "name": "Day Recap",
+      "prompt": "What did you do today? (aim for ~45\u201360 seconds)",
+      "expected_duration_seconds": 60,
+      "features_extracted": [
+        "acoustics_f0",
+        "prosody",
+        "speaking_rate_wpm",
+        "pause_fraction",
+        "sentiment_valence",
+        "topic_keywords"
+      ],
+      "requires_transcription": true,
+      "default_frequency": "daily_evening"
+    },
+    {
+      "id": "speech.substances_since_noon.v1",
+      "name": "Substances Since Noon",
+      "prompt": "Since noon, what did you ingest? Any substances to note? (~20\u201330 seconds)",
+      "expected_duration_seconds": 30,
+      "features_extracted": [
+        "keywords_substances",
+        "sentiment_valence"
+      ],
+      "requires_transcription": true,
+      "default_frequency": "daily_evening"
+    },
+    {
+      "id": "speech.body_status.v1",
+      "name": "Body Status",
+      "prompt": "Describe how your body feels today\u2014any symptoms or noticeable changes? (~30 seconds)",
+      "expected_duration_seconds": 30,
+      "features_extracted": [
+        "acoustics_f0",
+        "prosody",
+        "speaking_rate_wpm",
+        "sentiment_valence",
+        "symptom_keywords"
+      ],
+      "requires_transcription": true,
+      "default_frequency": "3x_week"
+    }
+  ]
+}

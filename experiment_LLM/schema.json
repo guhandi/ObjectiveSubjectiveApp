@@ -1,0 +1,407 @@
+{
+  "schema_version": "0.1.0",
+  "title": "Experiment Plan",
+  "type": "object",
+  "required": [
+    "metadata",
+    "title",
+    "research_question",
+    "hypotheses",
+    "sample",
+    "design",
+    "instruments",
+    "schedule",
+    "endpoints",
+    "analysis_plan",
+    "ethics",
+    "deliverables"
+  ],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": [
+        "generated_at",
+        "planner_version",
+        "input_question",
+        "library_version"
+      ],
+      "properties": {
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "planner_version": {
+          "type": "string"
+        },
+        "input_question": {
+          "type": "string"
+        },
+        "library_version": {
+          "type": "string"
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tunables": {
+          "type": "object",
+          "properties": {
+            "plan_duration_days": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "daily_burden_cap_minutes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "morning_window": {
+              "type": "string"
+            },
+            "midday_window": {
+              "type": "string"
+            },
+            "evening_window": {
+              "type": "string"
+            },
+            "pvt_days_per_week": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 7
+            },
+            "stroop_days_per_week": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 7
+            },
+            "speech_days_per_week": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 7
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "title": {
+      "type": "string"
+    },
+    "research_question": {
+      "type": "string"
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sample": {
+      "type": "object",
+      "required": [
+        "size",
+        "population"
+      ],
+      "properties": {
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "population": {
+          "type": "string"
+        },
+        "inclusion_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclusion_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "design": {
+      "type": "object",
+      "required": [
+        "type",
+        "duration_days",
+        "participant_burden_minutes_per_day"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "observational",
+            "crossover",
+            "intervention",
+            "case_study",
+            "longitudinal"
+          ]
+        },
+        "duration_days": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "start_date": {
+          "type": "string"
+        },
+        "end_date": {
+          "type": "string"
+        },
+        "frequency_overview": {
+          "type": "string"
+        },
+        "participant_burden_minutes_per_day": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "instruments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "library_id",
+          "name",
+          "modality",
+          "schedule",
+          "metrics",
+          "rationale"
+        ],
+        "properties": {
+          "library_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "modality": {
+            "type": "string",
+            "enum": [
+              "survey",
+              "cognition",
+              "speech"
+            ]
+          },
+          "schedule": {
+            "type": "object",
+            "required": [
+              "frequency",
+              "times_of_day"
+            ],
+            "properties": {
+              "frequency": {
+                "type": "string"
+              },
+              "times_of_day": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "days_of_week": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rationale": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "schedule": {
+      "description": "Concrete daily/weekly task schedule.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "day_index",
+          "time_window",
+          "task_library_id",
+          "estimated_minutes",
+          "instruction",
+          "reasons"
+        ],
+        "properties": {
+          "day_index": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "date": {
+            "type": "string"
+          },
+          "time_window": {
+            "type": "string"
+          },
+          "task_library_id": {
+            "type": "string"
+          },
+          "estimated_minutes": {
+            "type": "number",
+            "minimum": 0
+          },
+          "instruction": {
+            "type": "string"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "required": [
+        "primary",
+        "secondary",
+        "covariates"
+      ],
+      "properties": {
+        "primary": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "secondary": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "covariates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "analysis_plan": {
+      "type": "object",
+      "required": [
+        "approach",
+        "models",
+        "missing_data",
+        "planned_comparisons",
+        "quality_checks"
+      ],
+      "properties": {
+        "approach": {
+          "type": "string"
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "lagged_features": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing_data": {
+          "type": "string"
+        },
+        "planned_comparisons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "quality_checks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ethics": {
+      "type": "object",
+      "required": [
+        "participant_burden",
+        "privacy_and_consent",
+        "risks_and_limitations"
+      ],
+      "properties": {
+        "participant_burden": {
+          "type": "string"
+        },
+        "privacy_and_consent": {
+          "type": "string"
+        },
+        "risks_and_limitations": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "deliverables": {
+      "type": "object",
+      "required": [
+        "data_outputs",
+        "expected_insights",
+        "future_extensions"
+      ],
+      "properties": {
+        "data_outputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expected_insights": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "future_extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
